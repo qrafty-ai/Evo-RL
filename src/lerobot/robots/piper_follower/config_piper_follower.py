@@ -34,8 +34,8 @@ class PiperFollowerConfigBase:
     log_level: str = "WARNING"
     startup_sleep_s: float = 0.1
 
-    # Optional role command on startup (0xFC = motion output arm)
-    set_slave_mode_on_connect: bool = False
+    # Optional role command on startup (0xFC = motion output/follower arm)
+    set_follower_mode_on_connect: bool = False
 
     # Motion mode for follower arm
     speed_ratio: int = 100

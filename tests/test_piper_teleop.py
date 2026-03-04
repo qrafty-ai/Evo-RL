@@ -1,6 +1,8 @@
 from types import SimpleNamespace
 
 import lerobot.utils.piper_sdk as piper_sdk_utils
+import lerobot.robots.piper_follower.piper_follower as piper_follower_module
+import lerobot.teleoperators.piper_leader.piper_leader as piper_leader_module
 from lerobot.robots.piper_follower import PiperFollower, PiperFollowerConfig
 from lerobot.robots.utils import make_robot_from_config
 from lerobot.teleoperators.piper_leader import PiperLeader, PiperLeaderConfig
@@ -106,7 +108,10 @@ class FakePiperInterface:
 
 
 def patch_fake_sdk(monkeypatch):
-    monkeypatch.setattr(piper_sdk_utils, "get_piper_sdk", lambda: (FakePiperInterface, FakeLogLevel))
+    fake_loader = lambda: (FakePiperInterface, FakeLogLevel)
+    monkeypatch.setattr(piper_sdk_utils, "get_piper_sdk", fake_loader)
+    monkeypatch.setattr(piper_follower_module, "get_piper_sdk", fake_loader)
+    monkeypatch.setattr(piper_leader_module, "get_piper_sdk", fake_loader)
 
 
 def test_piper_leader_follower_teleop_roundtrip(monkeypatch):
@@ -120,7 +125,7 @@ def test_piper_leader_follower_teleop_roundtrip(monkeypatch):
     )
     robot_cfg = PiperFollowerConfig(
         port="can0",
-        set_slave_mode_on_connect=True,
+        set_follower_mode_on_connect=True,
         sync_gripper=True,
     )
 

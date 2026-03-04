@@ -85,7 +85,7 @@ class PiperFollower(Robot):
 
         self._is_connected = True
         try:
-            if self.config.set_slave_mode_on_connect:
+            if self.config.set_follower_mode_on_connect:
                 self.arm.MasterSlaveConfig(0xFC, 0x00, 0x00, 0x00)
                 time.sleep(0.05)
 
