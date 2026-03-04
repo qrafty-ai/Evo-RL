@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import numpy as np
-from scipy.signal import savgol_filter
 from PIL import Image, ImageDraw, ImageFont
+from scipy.signal import savgol_filter
 from tqdm.auto import tqdm
 
-from lerobot.datasets.video_utils import decode_video_frames, encode_video_frames
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
+from lerobot.datasets.video_utils import decode_video_frames, encode_video_frames
 
 
 def _smooth_1d(arr: np.ndarray, window: int = 1) -> np.ndarray:
@@ -31,7 +31,9 @@ def _select_video_key(camera_keys: list[str], requested_video_key: str | None) -
         raise ValueError("No camera key found in dataset.")
     if requested_video_key is not None:
         if requested_video_key not in camera_keys:
-            raise ValueError(f"Unknown video_key '{requested_video_key}'. Available camera keys: {camera_keys}")
+            raise ValueError(
+                f"Unknown video_key '{requested_video_key}'. Available camera keys: {camera_keys}"
+            )
         return requested_video_key
 
     for key in camera_keys:
@@ -53,7 +55,7 @@ def _select_video_keys(
         return [_select_video_key(camera_keys, requested_video_key)]
 
     resolved: list[str] = []
-    for raw_key in requested_video_keys.split(','):
+    for raw_key in requested_video_keys.split(","):
         key = raw_key.strip()
         if not key:
             continue
@@ -348,7 +350,7 @@ def _encode_pil_to_video(
     fps: int,
     vcodec: str,
 ) -> None:
-    """Encode PIL frames directly to video without writing intermediate PNGs."""
+    """Encode PIL frames directly to video without writing intermediate PNG files."""
     import av as _av
 
     video_options, pix_fmt = _get_video_encode_options(vcodec)
@@ -465,7 +467,7 @@ def _export_single_episode_multiview(
     y_min, y_max = _get_episode_value_bounds(ep_values)
 
     all_cam_frames: list[list[Image.Image]] = []
-    for src_path, ts in zip(src_video_paths, episode_timestamps_per_cam):
+    for src_path, ts in zip(src_video_paths, episode_timestamps_per_cam, strict=True):
         frames = _decode_frames_at_timestamps(
             video_file=src_path,
             timestamps_s=ts,
