@@ -96,14 +96,17 @@ class PiperFollower(Robot):
                 time.sleep(0.05)
 
             self.configure()
+            should_auto_calibrate = (
+                not self.is_calibrated and calibrate and should_require_piper_calibration(self.config.calibration_mode)
+            )
+            if should_auto_calibrate:
+                logger.info("No piper-follower calibration file found for '%s'. Running lerobot-calibrate flow.", self.id)
+                self.calibrate()
             # lerobot-calibrate calls connect(calibrate=False) before running calibrate().
-            # Keep the arm in drag mode for calibration by skipping auto-enable in this path.
+            # Keep the arm in drag mode for that path, but re-enable after connect-time calibration.
             should_enable = self.config.enable_on_connect and calibrate
             if should_enable and not self._wait_enable(self.config.enable_timeout_s):
                 logger.warning("Piper follower did not report enabled state before timeout.")
-            if not self.is_calibrated and calibrate and should_require_piper_calibration(self.config.calibration_mode):
-                logger.info("No piper-follower calibration file found for '%s'. Running lerobot-calibrate flow.", self.id)
-                self.calibrate()
 
             for cam in self.cameras.values():
                 cam.connect()

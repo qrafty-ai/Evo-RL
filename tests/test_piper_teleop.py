@@ -35,6 +35,7 @@ class FakePiperInterface:
         self.last_gripper = None
         self.enable_calls = 0
         self.disable_calls = 0
+        self.is_enabled = False
 
         self._joint_ctrl = SimpleNamespace(
             time_stamp=1.0,
@@ -86,11 +87,13 @@ class FakePiperInterface:
 
     def EnablePiper(self):
         self.enable_calls += 1
+        self.is_enabled = True
         return True
 
     def DisableArm(self, motor_num):
         del motor_num
         self.disable_calls += 1
+        self.is_enabled = False
 
     def JointCtrl(self, *args):
         self.last_joint = args
@@ -285,4 +288,33 @@ def test_piper_calibration_mode_off_allows_uncalibrated_control(monkeypatch):
         assert sent["gripper.pos"] == 42.0
     finally:
         teleop.disconnect()
+        robot.disconnect()
+
+
+def test_piper_follower_connect_calibrates_then_reenables(monkeypatch, tmp_path):
+    patch_fake_sdk(monkeypatch)
+
+    robot = PiperFollower(
+        PiperFollowerConfig(
+            port="can0",
+            id="connect_reenable_after_calibration",
+            calibration_dir=tmp_path,
+            calibration_mode="required",
+            enable_on_connect=True,
+        )
+    )
+
+    def fake_calibrate():
+        # Mirror real calibration's drag-mode behavior.
+        robot.arm.DisableArm(7)
+        robot.calibration = make_identity_calibration()
+
+    monkeypatch.setattr(robot, "calibrate", fake_calibrate)
+
+    robot.connect(calibrate=True)
+    try:
+        assert robot.arm.disable_calls == 1
+        assert robot.arm.enable_calls == 1
+        assert robot.arm.is_enabled
+    finally:
         robot.disconnect()
