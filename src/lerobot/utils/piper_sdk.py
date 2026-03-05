@@ -27,7 +27,8 @@ PIPER_JOINT_NAMES = (
     "joint_5",
     "joint_6",
 )
-PIPER_ACTION_KEYS = tuple(f"{joint}.pos" for joint in PIPER_JOINT_NAMES) + ("gripper.pos",)
+PIPER_JOINT_ACTION_KEYS = tuple(f"{joint}.pos" for joint in PIPER_JOINT_NAMES)
+PIPER_ACTION_KEYS = PIPER_JOINT_ACTION_KEYS + ("gripper.pos",)
 
 
 def milli_to_unit(value: float | int) -> float:

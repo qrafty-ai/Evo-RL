@@ -1,5 +1,7 @@
 from types import SimpleNamespace
 
+import pytest
+
 import lerobot.utils.piper_sdk as piper_sdk_utils
 import lerobot.robots.piper_follower.piper_follower as piper_follower_module
 import lerobot.teleoperators.piper_leader.piper_leader as piper_leader_module
@@ -8,6 +10,7 @@ from lerobot.robots.piper_follower import PiperFollower, PiperFollowerConfig
 from lerobot.robots.utils import make_robot_from_config
 from lerobot.teleoperators.piper_leader import PiperLeader, PiperLeaderConfig
 from lerobot.teleoperators.utils import make_teleoperator_from_config
+from lerobot.utils.piper_sdk import PIPER_ACTION_KEYS
 
 
 class FakeLogLevel:
@@ -124,7 +127,7 @@ def make_identity_calibration():
             range_min=-200000,
             range_max=200000,
         )
-        for idx, key in enumerate([f"joint_{i}.pos" for i in range(1, 7)] + ["gripper.pos"])
+        for idx, key in enumerate(PIPER_ACTION_KEYS)
     }
 
 
@@ -210,3 +213,58 @@ def test_piper_requires_calibration(monkeypatch):
     finally:
         teleop.disconnect()
         robot.disconnect()
+
+
+def test_piper_leader_reconnect_reapplies_mode(monkeypatch):
+    patch_fake_sdk(monkeypatch)
+
+    teleop = PiperLeader(PiperLeaderConfig(port="can1", manual_control=False))
+    teleop.calibration = make_identity_calibration()
+
+    teleop.connect(calibrate=False)
+    teleop.disconnect()
+    teleop.connect(calibrate=False)
+    try:
+        assert teleop.arm.enable_calls == 2
+    finally:
+        teleop.disconnect()
+
+
+def test_piper_follower_connect_rolls_back_connected_cameras(monkeypatch):
+    patch_fake_sdk(monkeypatch)
+
+    class FakeCamera:
+        def __init__(self, should_fail: bool):
+            self.should_fail = should_fail
+            self.is_connected = False
+            self.disconnect_calls = 0
+
+        def connect(self):
+            if self.should_fail:
+                raise RuntimeError("camera connect failed")
+            self.is_connected = True
+
+        def disconnect(self):
+            self.disconnect_calls += 1
+            self.is_connected = False
+
+        def async_read(self):
+            return None
+
+    cam_ok = FakeCamera(should_fail=False)
+    cam_fail = FakeCamera(should_fail=True)
+    monkeypatch.setattr(
+        piper_follower_module,
+        "make_cameras_from_configs",
+        lambda _: {"cam_ok": cam_ok, "cam_fail": cam_fail},
+    )
+
+    robot = PiperFollower(PiperFollowerConfig(port="can0"))
+    robot.calibration = make_identity_calibration()
+
+    with pytest.raises(RuntimeError, match="camera connect failed"):
+        robot.connect(calibrate=False)
+
+    assert cam_ok.disconnect_calls == 1
+    assert not cam_ok.is_connected
+    assert not robot.is_connected

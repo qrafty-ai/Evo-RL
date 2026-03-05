@@ -25,6 +25,7 @@ from lerobot.processor import RobotAction, RobotObservation
 from lerobot.utils.decorators import check_if_already_connected, check_if_not_connected
 from lerobot.utils.piper_sdk import (
     PIPER_ACTION_KEYS,
+    PIPER_JOINT_ACTION_KEYS,
     PIPER_JOINT_NAMES,
     get_piper_sdk,
     milli_to_unit,
@@ -87,6 +88,7 @@ class PiperFollower(Robot):
             time.sleep(self.config.startup_sleep_s)
 
         self._is_connected = True
+        connected_cameras = []
         try:
             if self.config.set_follower_mode_on_connect:
                 self.arm.MasterSlaveConfig(0xFC, 0x00, 0x00, 0x00)
@@ -104,8 +106,11 @@ class PiperFollower(Robot):
 
             for cam in self.cameras.values():
                 cam.connect()
+                connected_cameras.append(cam)
         except Exception:
             self.arm.DisconnectPort()
+            for cam in connected_cameras:
+                cam.disconnect()
             self._is_connected = False
             raise
 
@@ -251,7 +256,7 @@ class PiperFollower(Robot):
 
         sent_action: dict[str, float] = {}
 
-        joint_keys = [f"{joint_name}.pos" for joint_name in PIPER_JOINT_NAMES]
+        joint_keys = PIPER_JOINT_ACTION_KEYS
         has_all_joints = all(key in action for key in joint_keys)
         if has_all_joints:
             joint_targets = [self._offset_to_target(key, action[key]) for key in joint_keys]

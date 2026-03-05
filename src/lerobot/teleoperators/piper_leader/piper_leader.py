@@ -24,6 +24,7 @@ from lerobot.processor import RobotAction
 from lerobot.utils.decorators import check_if_already_connected, check_if_not_connected
 from lerobot.utils.piper_sdk import (
     PIPER_ACTION_KEYS,
+    PIPER_JOINT_ACTION_KEYS,
     PIPER_JOINT_NAMES,
     get_piper_sdk,
     milli_to_unit,
@@ -80,6 +81,8 @@ class PiperLeader(Teleoperator):
             time.sleep(self.config.startup_sleep_s)
 
         self._is_connected = True
+        # Recompute control mode on every fresh connection.
+        self._manual_control_enabled = None
         try:
             if self.config.set_leader_mode_on_connect:
                 # NOTE:
@@ -216,17 +219,20 @@ class PiperLeader(Teleoperator):
         return abs(milli_to_unit(getattr(gripper_state, "grippers_angle", 0)))
 
     def _read_raw_action(self) -> RobotAction:
+        used_feedback_for_joints = False
         action: dict[str, float] | None = None
         if self.config.prefer_ctrl_messages:
             action = self._read_joint_from_ctrl()
 
         if action is None and self.config.fallback_to_feedback:
             action = self._read_joint_from_feedback()
+            used_feedback_for_joints = action is not None
 
         if action is None:
             action = {f"{joint_name}.pos": 0.0 for joint_name in PIPER_JOINT_NAMES}
 
-        gripper_pos = self._read_gripper_from_ctrl() if self.config.prefer_ctrl_messages else None
+        use_ctrl_for_gripper = self.config.prefer_ctrl_messages and not used_feedback_for_joints
+        gripper_pos = self._read_gripper_from_ctrl() if use_ctrl_for_gripper else None
         if gripper_pos is None and self.config.fallback_to_feedback:
             gripper_pos = self._read_gripper_from_feedback()
         action["gripper.pos"] = 0.0 if gripper_pos is None else gripper_pos
@@ -302,7 +308,7 @@ class PiperLeader(Teleoperator):
         self.set_manual_control(False)
         self._refresh_command_mode_if_needed()
 
-        joint_keys = [f"{joint_name}.pos" for joint_name in PIPER_JOINT_NAMES]
+        joint_keys = PIPER_JOINT_ACTION_KEYS
         has_all_joints = all(key in feedback for key in joint_keys)
         if has_all_joints:
             joint_targets = [self._offset_to_calibrated(key, feedback[key]) for key in joint_keys]
@@ -327,4 +333,5 @@ class PiperLeader(Teleoperator):
         finally:
             self.arm.DisconnectPort()
             self._is_connected = False
+            self._manual_control_enabled = None
             logger.info("%s disconnected.", self)
