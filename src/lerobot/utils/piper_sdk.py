@@ -83,7 +83,7 @@ def _piper_mode_to_int(value: Any) -> int | None:
     if isinstance(value, bool):
         return int(value)
     if isinstance(value, int):
-        return value
+        return int(value)
     if hasattr(value, "value") and isinstance(value.value, int):
         return int(value.value)
     if hasattr(value, "__int__"):
