@@ -152,8 +152,22 @@ class Pistar06PrepareImagesProcessorStep(ProcessorStep):
             f"Got camera batch with shape={tuple(img_batch.shape)}."
         )
 
+    # def _process_camera_batch(self, img_batch: Tensor) -> Tensor:
+    #     return self._to_bchw(img_batch).detach().to(dtype=torch.float32)
+
     def _process_camera_batch(self, img_batch: Tensor) -> Tensor:
-        return self._to_bchw(img_batch).detach().to(dtype=torch.float32)
+        # STEP 1: Process and assign to a local variable 'img'
+        img = self._to_bchw(img_batch).detach().to(dtype=torch.float32)
+        
+        import torch.nn.functional as F
+        target_size = (360, 640)
+        
+        if img.shape[-2:] != target_size:
+            # STEP 2: Update the 'img' variable with the resized version
+            img = F.interpolate(img, size=target_size, mode='bilinear', align_corners=False)
+            
+        # STEP 3: Return the MODIFIED variable
+        return img
 
     def _prepare_images(self, observation: dict[str, Any]) -> tuple[Tensor, Tensor]:
         present_img_keys = [key for key in self.camera_features if key in observation]

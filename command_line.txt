@@ -1,0 +1,11 @@
+lerobot-value-train \
+  --dataset.repo_id=qrafty-ai/use_spoon_hil_0314 \
+  --dataset.revision=main \
+  --value.type=pistar06 \
+  --value.camera_features='["observation.images.head_camera"]' \
+  --value.dtype=bfloat16 \
+  --value.push_to_hub=false \
+  --batch_size=4 \
+  --output_dir=outputs/value_train/use_spoon_0314_head_only \
+  --job_name=use_spoon_hil_0314_head_only \
+  --wandb.enable=false
