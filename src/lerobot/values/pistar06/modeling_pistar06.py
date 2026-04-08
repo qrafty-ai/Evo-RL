@@ -321,15 +321,34 @@ class Pistar06Model(nn.Module):
         if cfg.freeze_vision_encoder:
             _freeze_module(self.vision_encoder)
 
+    # def _encode_images(self, flat_images: Tensor) -> Tensor:
+    #     if hasattr(self.vision_encoder, "get_image_features"):
+    #         return self.vision_encoder.get_image_features(pixel_values=flat_images)
+
+    #     vision_outputs = self.vision_encoder(pixel_values=flat_images, return_dict=True)
+    #     if hasattr(vision_outputs, "pooler_output") and vision_outputs.pooler_output is not None:
+    #         return vision_outputs.pooler_output
+    #     if hasattr(vision_outputs, "last_hidden_state"):
+    #         return vision_outputs.last_hidden_state.mean(dim=1)
+    #     raise ValueError("Unsupported vision encoder output. Expected pooler_output or last_hidden_state.")
+
     def _encode_images(self, flat_images: Tensor) -> Tensor:
         if hasattr(self.vision_encoder, "get_image_features"):
-            return self.vision_encoder.get_image_features(pixel_values=flat_images)
+            out = self.vision_encoder.get_image_features(pixel_values=flat_images)
+            if torch.is_tensor(out):
+                return out
+            # SigLIP etc. may return BaseModelOutputWithPooling
+            if hasattr(out, "pooler_output") and out.pooler_output is not None:
+                return out.pooler_output
+            if hasattr(out, "last_hidden_state"):
+                return out.last_hidden_state.mean(dim=1)
+            raise ValueError("get_image_features returned unsupported type.")
 
         vision_outputs = self.vision_encoder(pixel_values=flat_images, return_dict=True)
-        if hasattr(vision_outputs, "pooler_output") and vision_outputs.pooler_output is not None:
-            return vision_outputs.pooler_output
         if hasattr(vision_outputs, "last_hidden_state"):
             return vision_outputs.last_hidden_state.mean(dim=1)
+        if hasattr(vision_outputs, "pooler_output") and vision_outputs.pooler_output is not None:
+            return vision_outputs.pooler_output
         raise ValueError("Unsupported vision encoder output. Expected pooler_output or last_hidden_state.")
 
     def _encode_language(self, input_ids: Tensor, attention_mask: Tensor) -> Tensor:
